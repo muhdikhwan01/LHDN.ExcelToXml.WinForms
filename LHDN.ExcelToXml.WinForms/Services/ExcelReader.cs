@@ -21,9 +21,13 @@ namespace LHDN.ExcelToXml.WinForms.Services
 
             // Count columns to find where transferee columns start
             int totalCols = headers.Count;
-            // Transferor columns end roughly before the second "type" header appears
-            int secondTypeCol = headers.FirstOrDefault(h => h.Key > headers.First().Key && h.Value == "type").Key;
-            int transferorEnd = (secondTypeCol > 0) ? secondTypeCol - 1 : totalCols;
+            // Hardcode Excel structure based on actual layout
+            // Transferor columns: G1–Y1 (7–25)
+            // Transferee columns: Z1–AR1 (26–44)
+            int transferorStart = 7;
+            int transferorEnd = 25;
+            int transfereeStart = 26;
+            int transfereeEnd = 44;
 
             foreach (var row in ws.RowsUsed().Skip(1))
             {
@@ -49,7 +53,8 @@ namespace LHDN.ExcelToXml.WinForms.Services
                     // --- TRANSFEROR (left side) ---
                     var tr = new Party();
                     var keys = headers.Keys.ToList();
-                    for (int i = headers.First().Key; i <= transferorEnd; i++)
+                    // --- TRANSFEROR (columns G–Y) ---
+                    for (int i = transferorStart; i <= transferorEnd; i++)
                     {
                         string col = headers[i];
                         string val = row.Cell(i).GetString().Trim();
@@ -77,7 +82,8 @@ namespace LHDN.ExcelToXml.WinForms.Services
 
                     // --- TRANSFEREE (right side) ---
                     var tf = new Party();
-                    for (int i = transferorEnd + 1; i <= totalCols; i++)
+                    // --- TRANSFEREE (columns Z–AR) ---
+                    for (int i = transfereeStart; i <= transfereeEnd; i++)
                     {
                         string col = headers.ContainsKey(i) ? headers[i] : "";
                         string val = row.Cell(i).GetString().Trim();
