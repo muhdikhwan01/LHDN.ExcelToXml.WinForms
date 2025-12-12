@@ -8,9 +8,14 @@ using LHDN.ExcelToXml.WinForms.Models;
 
 namespace LHDN.ExcelToXml.WinForms.Services
 {
+    // Generates valid XML from models following LHDN schema
+    // Purpose: Transforms model → XML conforming to STAMPS standard.
     public static class XmlGenerator
     {
+        // Max size per XML file in MB
         const double MaxMb = 30.0;
+
+        // Generates XML files from list of instruments, batching to keep each file under MaxMb
         public static List<string> GenerateXmlFiles(int appType, List<Instrument> instruments, string outputDir, Action<string> log)
         {
             // Build XElement instruments individually (for easy batching)
@@ -73,6 +78,7 @@ namespace LHDN.ExcelToXml.WinForms.Services
             return outputFiles;
         }
 
+        // Builds XML element for a single instrument
         static XElement BuildInstrumentElement(int appType, Instrument inst)
         {
             XElement[] transferorEls = inst.Transferors.Select(t =>

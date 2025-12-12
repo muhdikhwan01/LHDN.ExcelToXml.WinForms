@@ -7,6 +7,8 @@ using LHDN.ExcelToXml.WinForms.Models;
 
 namespace LHDN.ExcelToXml.WinForms.Services
 {
+    // Reads and parses Excel data
+    // Purpose: Converts Excel sheet → C# objects, ready for XML conversion.
     public static class ExcelReader
     {
         public static (int appType, List<Instrument> instruments) LoadFromExcel(string path, Action<string> log)
@@ -33,9 +35,11 @@ namespace LHDN.ExcelToXml.WinForms.Services
             {
                 try
                 {
+                    // Detect application type from first data row
                     int appType = TryInt(GetValue(row, headers, "applicationtype"));
                     detectedAppType = (appType == 0) ? 44 : appType;
 
+                    // Read main instrument fields
                     var inst = new Instrument
                     {
                         RefNo = GetValue(row, headers, "refno"),
@@ -113,6 +117,7 @@ namespace LHDN.ExcelToXml.WinForms.Services
                     inst.Transferees.Add(tf);
 
                     // Attachment handling
+                    // Load file and convert to Base64
                     string attachPath = GetValue(row, headers, "attachment name=");
                     if (!string.IsNullOrWhiteSpace(attachPath) && File.Exists(attachPath))
                     {

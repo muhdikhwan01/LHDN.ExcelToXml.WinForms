@@ -3,6 +3,8 @@ using LHDN.ExcelToXml.WinForms.Models;
 
 namespace LHDN.ExcelToXml.WinForms.Validation
 {
+    // Checks for missing/invalid data
+    // Purpose: Prevents incomplete XML from being uploaded.
     public static class Validator
     {
         // Return list of validation messages. Empty list => OK
@@ -22,8 +24,10 @@ namespace LHDN.ExcelToXml.WinForms.Validation
             if (inst.Transferees.Count == 0 || string.IsNullOrWhiteSpace(inst.Transferees[0].Name))
                 issues.Add($"Missing transferee name for {inst.RefNo}.");
 
+            // Application type specific checks
             if (appType == 43)
             {
+                // for Sekuriti, consideration is required
                 if (string.IsNullOrWhiteSpace(inst.Consideration))
                     issues.Add($"Sekuriti: consideration required for {inst.RefNo}.");
             }

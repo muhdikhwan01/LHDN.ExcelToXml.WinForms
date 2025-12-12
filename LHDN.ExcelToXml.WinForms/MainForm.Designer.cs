@@ -1,5 +1,7 @@
 ﻿namespace LHDN.ExcelToXml.WinForms
 {
+    // UI layout
+    // Purpose: Handles user interaction in a simple, one-click workflow.
     partial class MainForm
     {
         /// <summary>

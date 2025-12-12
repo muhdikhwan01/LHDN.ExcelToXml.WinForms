@@ -1,8 +1,10 @@
 ﻿namespace LHDN.ExcelToXml.WinForms.Models
 {
+    // Party: Represents one Transferor / Transferee
+    // Purpose: Holds address and identity info for each party.
     public class Party
     {
-        public int Type { get; set; } = 0;
+        public int Type { get; set; } = 0; // 1=Individual, 2=Company
         public string Name { get; set; } = "";
         public string Nationality { get; set; } = "";
         public string IcNo { get; set; } = "";

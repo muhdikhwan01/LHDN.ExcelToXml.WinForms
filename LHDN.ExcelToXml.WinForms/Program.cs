@@ -3,6 +3,7 @@ using System.Windows.Forms;
 
 namespace LHDN.ExcelToXml.WinForms
 {
+    // Program entry point
     static class Program
     {
         [STAThread]

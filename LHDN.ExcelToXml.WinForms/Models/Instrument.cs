@@ -2,6 +2,8 @@
 
 namespace LHDN.ExcelToXml.WinForms.Models
 {
+    // Represents a single whole document (agreement)
+    // Purpose: Holds all data from a single Excel row (one stamping record).
     public class Instrument
     {
         public string RefNo { get; set; } = "";
