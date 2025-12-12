@@ -39,8 +39,8 @@ namespace LHDN.ExcelToXml.WinForms.Services
                     var inst = new Instrument
                     {
                         RefNo = GetValue(row, headers, "refno"),
-                        InstrumentDate = GetValue(row, headers, "instrumentdate"),
-                        InstrumentDateReceive = GetValue(row, headers, "instrumentdatereceive"),
+                        InstrumentDate = GetDateCellString(row, headers, "instrumentdate", log),
+                        InstrumentDateReceive = GetDateCellString(row, headers, "instrumentdatereceive", log),
                         TypeOfInstrument = GetValue(row, headers, "typeofinstrument"),
                         TypeOfInstrumentOthers = GetValue(row, headers, "typeofinstrumentothers"),
                         NoOfCopy = GetValue(row, headers, "noofcopy"),
@@ -136,6 +136,41 @@ namespace LHDN.ExcelToXml.WinForms.Services
         {
             var match = headers.FirstOrDefault(h => h.Value.Contains(key.ToLower()));
             return match.Key > 0 ? row.Cell(match.Key).GetString().Trim() : "";
+        }
+
+        // Normalize Excel date cells to DD//MM/YYYY format for STAMPS compliance
+        private static string GetDateCellString(IXLRow row, Dictionary<int, string> headers, string key, Action<string>? log = null)
+        {
+            var match = headers.FirstOrDefault(h => h.Value.Contains(key.ToLower()));
+            if (match.Key <= 0) return "";
+
+            var cell = row.Cell(match.Key);
+
+            try
+            {
+                if (cell.DataType == XLDataType.DateTime)
+                {
+                    var dt = cell.GetDateTime();
+                    return dt.ToString("dd/MM/yyyy");
+                }
+
+                var raw = cell.GetString().Trim();
+                if (string.IsNullOrEmpty(raw)) return "";
+
+                if (DateTime.TryParse(raw, out var parsed))
+                    return parsed.ToString("dd/MM/yyyy");
+
+                var first = raw.Split(' ')[0].Trim();
+                if (DateTime.TryParse(first, out var parsed2))
+                    return parsed2.ToString("dd/MM/yyyy");
+
+                return raw;
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"Date parse warning for column '{key}': {ex.Message}");
+                return "";
+            }
         }
 
         private static int TryInt(string s)
