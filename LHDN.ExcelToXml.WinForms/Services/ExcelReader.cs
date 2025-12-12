@@ -1,9 +1,10 @@
-﻿using System;
+﻿using ClosedXML.Excel;
+using LHDN.ExcelToXml.WinForms.Models;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using ClosedXML.Excel;
-using LHDN.ExcelToXml.WinForms.Models;
+using System.Text.RegularExpressions;
 
 namespace LHDN.ExcelToXml.WinForms.Services
 {
@@ -39,6 +40,15 @@ namespace LHDN.ExcelToXml.WinForms.Services
                     int appType = TryInt(GetValue(row, headers, "applicationtype"));
                     detectedAppType = (appType == 0) ? 44 : appType;
 
+                    // find instrumentDate column index (safe lookup)
+                    int instrumentDateCol = headers.FirstOrDefault(h => h.Value.Contains("instrumentdate")).Key;
+
+                    // read raw cell value (if column exists)
+                    string rawInstrumentDate = instrumentDateCol > 0 ? row.Cell(instrumentDateCol).GetString() : "";
+
+                    // log the raw value (will reveal hidden chars, dashes, etc.)
+                    log?.Invoke($"RAW instrumentDate cell value: '{rawInstrumentDate}'");
+
                     // Read main instrument fields
                     var inst = new Instrument
                     {
@@ -53,6 +63,7 @@ namespace LHDN.ExcelToXml.WinForms.Services
                         AggrementInfo = GetValue(row, headers, "aggrementinfo"),
                         AttachmentName = GetValue(row, headers, "attachment name=")
                     };
+                    log?.Invoke($"PARSED instrumentDate value: '{inst.InstrumentDate}'");
 
                     // --- TRANSFEROR (left side) ---
                     var tr = new Party();
@@ -143,7 +154,7 @@ namespace LHDN.ExcelToXml.WinForms.Services
             return match.Key > 0 ? row.Cell(match.Key).GetString().Trim() : "";
         }
 
-        // Normalize Excel date cells to DD//MM/YYYY format for STAMPS compliance
+        // Normalize Excel date cells to DD/MM/YYYY format for STAMPS compliance
         private static string GetDateCellString(IXLRow row, Dictionary<int, string> headers, string key, Action<string>? log = null)
         {
             var match = headers.FirstOrDefault(h => h.Value.Contains(key.ToLower()));
@@ -153,23 +164,73 @@ namespace LHDN.ExcelToXml.WinForms.Services
 
             try
             {
+                string result = "";
+
+                // 1) If cell is true Excel date type, use it
                 if (cell.DataType == XLDataType.DateTime)
                 {
                     var dt = cell.GetDateTime();
-                    return dt.ToString("dd/MM/yyyy");
+                    result = dt.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                    return result;
                 }
 
+                // 2) Read raw string and normalize
                 var raw = cell.GetString().Trim();
                 if (string.IsNullOrEmpty(raw)) return "";
 
-                if (DateTime.TryParse(raw, out var parsed))
-                    return parsed.ToString("dd/MM/yyyy");
+                // Strip trailing time if any
+                var dateCandidate = raw.Split(' ')[0].Trim();
 
-                var first = raw.Split(' ')[0].Trim();
-                if (DateTime.TryParse(first, out var parsed2))
-                    return parsed2.ToString("dd/MM/yyyy");
+                // Try parsing with common formats
+                var formats = new[]
+                {
+                    "dd/MM/yyyy","d/M/yyyy",
+                    "dd-MM-yyyy","d-M-yyyy",
+                    "yyyy-MM-dd","yyyy/MM/dd",
+                    "M/d/yyyy","MM/dd/yyyy",
+                    "d MMM yyyy","dd MMM yyyy"
+                };
 
-                return raw;
+                if (DateTime.TryParseExact(dateCandidate, formats, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var parsedExact))
+                {
+                    result = parsedExact.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                    return result;
+                }
+
+                // Try parse using en-GB culture (day/month/year)
+                if (DateTime.TryParse(dateCandidate, new System.Globalization.CultureInfo("en-GB"),
+                    System.Globalization.DateTimeStyles.None, out var parsedGb))
+                {
+                    result = parsedGb.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                    return result;
+                }
+
+                // If still not parsed, try replacing any dash-like characters with '/'
+                // normalize common dash characters to ASCII hyphen then to '/'
+                var normalizedCandidate = dateCandidate
+                    .Replace('–', '-')  // en-dash
+                    .Replace('—', '-')  // em-dash
+                    .Replace('\u2011', '-') // non-breaking hyphen
+                    .Replace('‐', '-')    // hyphen
+                    .Replace('-', '/');
+
+                // try parsing again
+                if (DateTime.TryParseExact(normalizedCandidate, formats, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var parsedNormalizedExact))
+                {
+                    result = parsedNormalizedExact.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                    return result;
+                }
+                if (DateTime.TryParse(normalizedCandidate, new System.Globalization.CultureInfo("en-GB"),
+                    System.Globalization.DateTimeStyles.None, out var parsedNormalizedGb))
+                {
+                    result = parsedNormalizedGb.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                    return result;
+                }
+
+                // Last resort: return original candidate but with '-' replaced to '/'
+                return dateCandidate.Replace('-', '/');
             }
             catch (Exception ex)
             {
